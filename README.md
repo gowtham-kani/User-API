@@ -19,8 +19,8 @@ Backend: Python with Flask
 Data Processing: Pandas
 Cross-Origin Resource Sharing (CORS): Flask-CORS
 Clone the Repository
-git clone https://github.com/your-username/your-repository.git
-cd your-repository
+git clone https://github.com/gowtham-kani/User-API.git
+cd User-API
 File Structure
 │
 ├── data_analyzer.py          # Flask backend application
