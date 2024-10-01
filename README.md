@@ -27,3 +27,17 @@ File Structure
 ├── interface.html      # Frontend HTML file
 ├── style.css      # CSS styles
 └── actions.js       # JavaScript for frontend functionality
+Testing with Postman
+You can also test the file upload API using Postman.
+
+Open Postman.
+Create a new request:
+Set the request type to POST.
+Enter the URL: http://127.0.0.1:5000/upload.
+Select the Body tab:
+Choose form-data.
+Add a key named file and set the type to File.
+Upload a CSV or Parquet file from your local system.
+Send the Request:
+Click the Send button.
+You should receive a JSON response containing the analysis results.
