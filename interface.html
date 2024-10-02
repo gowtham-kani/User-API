@@ -8,13 +8,15 @@
 </head>
 <body>
     <h1> File Upload and Analysis</h1>
+
     <form id="uploadForm">
-        <input type="file" id="fileInput" accept=".csv, .parquet" required>
-        <button type="submit">Submit</button>
+        <input type="file" id="fileInput" accept=".csv, .parquet">
         <input type="text" id="s3Url" placeholder="Enter S3 URL (optional)">
+        <button type="submit">Submit</button>
         <button type="button" id="clearButton">Clear File and Results</button>
     </form>
     <div id="result"></div>
+
 
     <script src="action.js"></script>
 </body>
