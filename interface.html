@@ -11,11 +11,21 @@
 
     <form id="uploadForm">
         <input type="file" id="fileInput" accept=".csv, .parquet">
-        <input type="text" id="s3Url" placeholder="Enter S3 URL (optional)">
         <button type="submit">Submit</button>
-        <button type="button" id="clearButton">Clear File and Results</button>
     </form>
-    <div id="result"></div>
+    <form id="downloadForm">
+        <h2>Download File from S3</h2>
+        <label for="s3Url">S3 URL:</label>
+        <input type="text" id="s3Url" placeholder="Enter S3 URL" required>
+        <label for="bucketName">Bucket Name:</label>
+        <input type="text" id="bucketName" placeholder="Enter Bucket Name" required>
+        <button type="submit">Download</button>
+    </form>
+
+    <button type="button" id="clearButton">Clear All</button>
+
+    <div id="uploadResult"></div>
+    <div id="downloadResult"></div>
 
 
     <script src="action.js"></script>
