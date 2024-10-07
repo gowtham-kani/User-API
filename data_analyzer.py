@@ -3,6 +3,7 @@ from flask_cors import CORS
 import pandas as pd
 import boto3
 import os
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 CORS(app)
@@ -13,28 +14,18 @@ app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024
 @app.route('/upload', methods=['POST'])
 def upload_file():
    # Check if an S3 URL is provided
-    s3_url = request.form.get('s3Url')
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
     
-    if s3_url and s3_url.startswith('https://'):
-        # Download from S3
-        bucket_name, object_key = extract_bucket_and_key(s3_url)
-        
-        # Create an S3 client (Assuming AWS credentials are set in environment variables)
-        s3_client = boto3.client('s3')
-        local_file_path = os.path.join('downloads', os.path.basename(object_key))
-        os.makedirs('downloads', exist_ok=True)
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    if not (file.filename.endswith('.csv') or file.filename.endswith('.parquet')):
+        return jsonify({"error": "Unsupported file type. Only .csv and .parquet are allowed."}), 400
 
-        try:
-            s3_client.download_file(bucket_name, object_key, local_file_path)
-            file = open(local_file_path, 'rb')
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    elif 'file' in request.files:
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No selected file'}), 400
-    else:
-        return jsonify({'error': 'No file or valid S3 URL provided'}), 400
+    # Read the file using pandas
     try:
         
         if file.filename.endswith('.csv'):
@@ -82,13 +73,69 @@ def upload_file():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
 
-def extract_bucket_and_key(s3_url):
-    """Extract bucket name and object key from S3 URL."""
-    path_parts = s3_url.replace("https://", "").split("/")
-    bucket_name = path_parts[0]
-    object_key = "/".join(path_parts[1:])
-    return bucket_name, object_key
+@app.route('/download', methods=['POST'])
+def download():
+    try:
+        data = request.json
+        s3_url = data.get('s3_url')
+        bucket_name = data.get('bucket_name')
+
+        if not s3_url:
+            return jsonify({"error": "S3 URL is required"}), 400
+
+        if not bucket_name:
+            return jsonify({"error": "Bucket name is required"}), 400
+
+        # Parse the S3 URL
+        object_key = parse_s3_url(s3_url)
+
+        # Ask for AWS credentials in the console
+        aws_access_key_id = input("Enter AWS Access Key ID: ")
+        aws_secret_access_key = input("Enter AWS Secret Access Key: ")
+
+        # Set the local file path where the file will be downloaded
+        local_file_path = os.path.join(os.getcwd(), object_key.split('/')[-1])
+
+        # Download the file
+        success = download_file_from_s3(bucket_name, object_key, aws_access_key_id, aws_secret_access_key, local_file_path)
+
+        if success:
+            return jsonify({"message": f"File downloaded successfully: {local_file_path}"}), 200
+        else:
+            return jsonify({"error": "File download failed."}), 500
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+def parse_s3_url(s3_url):
+    """Parses the S3 URL and returns the object key."""
+    parsed_url = urlparse(s3_url)
+    
+    if not parsed_url.scheme == 'https':
+        raise ValueError("Invalid S3 URL format: URL must start with 'https://'.")
+    
+    object_key = parsed_url.path.lstrip('/')
+    return object_key
+
+def download_file_from_s3(bucket_name, object_key, aws_access_key_id, aws_secret_access_key, local_file_path):
+    try:
+        # Initialize S3 client with provided AWS credentials
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            region_name='us-east-2'  # Set the correct region
+        )
+
+        # Download the file from S3
+        s3.download_file(bucket_name, object_key, local_file_path)
+        return True
+    except Exception as e:
+        print(f"Error while downloading file: {e}")
+        return False
 
 def analyze_object_column(column):
     """Analyzes the types of values within an object column."""
