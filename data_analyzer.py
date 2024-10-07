@@ -114,7 +114,7 @@ def parse_s3_url(s3_url):
     """Parses the S3 URL and returns the object key."""
     parsed_url = urlparse(s3_url)
     
-    if not parsed_url.scheme == 'https':
+    if not parsed_url.scheme in ['s3', 'https']:
         raise ValueError("Invalid S3 URL format: URL must start with 'https://'.")
     
     object_key = parsed_url.path.lstrip('/')
