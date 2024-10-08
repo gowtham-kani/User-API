@@ -27,53 +27,75 @@ def upload_file():
 
     # Read the file using pandas
     try:
-        
+        results = []
+        total_records = 0
+
         if file.filename.endswith('.csv'):
-            data = pd.read_csv(file)
+            # If the file is large, read it in chunks
+            chunk_size = 10**6  # Adjust chunk size based on memory constraints
+            data_iterator = pd.read_csv(file, chunksize=chunk_size)
+
+            for chunk in data_iterator:
+                total_records += len(chunk)
+                results.extend(analyze_dataframe(chunk))
+
         elif file.filename.endswith('.parquet'):
             data = pd.read_parquet(file)
-        else:
-            return jsonify({'error': 'Unsupported file type'}), 400
+            total_records = len(data)
+            results = analyze_dataframe(data)
 
-        # Calculate metrics
-        total_records = len(data)
-        null_counts = data.isnull().sum()
-        unique_counts = data.nunique()
-        empty_counts = (data == '').sum()
-        data_types = data.dtypes
-
-        results = []
-        for column in data.columns:
-            col_type = str(data_types[column])
-            if col_type == 'object':
-                # Analyze the types within the 'object' column
-                type_analysis = analyze_object_column(data[column])
-
-            results.append({
-                'column_name': column,
-                'data_type': col_type + f" ({type_analysis})",
-                'unique_values': int(unique_counts[column]),
-                'duplicate_values': int(total_records - unique_counts[column] - null_counts[column]),
-                'null_values': int(null_counts[column]),
-                'empty_values': int(empty_counts[column]),
-                'total_records': total_records
-            })
-        else:
-                results.append({
-                    'column_name': column,
-                    'data_type': col_type,
-                    'unique_values': int(unique_counts[column]),
-                    'duplicate_values': int(total_records - unique_counts[column] - null_counts[column]),
-                    'null_values': int(null_counts[column]),
-                    'empty_values': int(empty_counts[column]),
-                    'total_records': total_records
-                })
-
-        return jsonify(results), 200
-
+        return jsonify({
+            "results": results,
+            "total_records": total_records,
+        }), 200
+    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+def analyze_dataframe(df):
+    """Calculate metrics for the provided dataframe."""
+    results = []
+    total_records = len(df)
+
+    for column in df.columns:
+        col_data = df[column]
+        col_type = str(col_data.dtype)
+
+        # Analyze the types within the 'object' column
+        type_analysis = analyze_object_column(col_data) if col_type == 'object' else None
+
+        results.append({
+            'column_name': column,
+            'data_type': col_type,
+            'specific_types': type_analysis,
+            'unique_values': int(col_data.nunique()),
+            'duplicate_values': int(total_records - col_data.nunique() - col_data.isnull().sum()),
+            'null_values': int(col_data.isnull().sum()),
+            'empty_values': int((col_data == '').sum()) if col_type == 'object' else 0,
+            'total_records': total_records
+        })
+
+    return results
+
+def analyze_object_column(column):
+    """Analyzes the types of values within an object column."""
+    type_counts = column.apply(lambda x: identify_type(x)).value_counts()
+    
+    # Return a summary of types found in the column
+    return ', '.join([f"{t}: {count}" for t, count in type_counts.items()])    
+
+def identify_type(value):
+    """Identifies the type of a value."""
+    if pd.isna(value):
+        return 'NaN'
+    elif isinstance(value, str):
+        return 'string'
+    elif isinstance(value, int):
+        return 'integer'
+    elif isinstance(value, float):
+        return 'float'
+    else:
+        return 'other'
 
 @app.route('/download', methods=['POST'])
 def download():
@@ -136,17 +158,5 @@ def download_file_from_s3(bucket_name, object_key, aws_access_key_id, aws_secret
     except Exception as e:
         print(f"Error while downloading file: {e}")
         return False
-
-def analyze_object_column(column):
-    """Analyzes the types of values within an object column."""
-    # Determine the types in the object column
-    types_in_column = column.apply(lambda x: type(x).__name__).unique()
-    
-    # Determine the frequency of each type
-    type_counts = column.apply(lambda x: type(x).__name__).value_counts()
-    
-    # Return a summary of types found in the column
-    return ', '.join([f"{t}: {count}" for t, count in type_counts.items()])    
-
 if __name__ == '__main__':
     app.run(debug=True)
