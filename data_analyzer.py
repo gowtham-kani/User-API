@@ -62,12 +62,13 @@ def analyze_dataframe(df):
         col_type = str(col_data.dtype)
 
         # Analyze the types within the 'object' column
-        type_analysis = analyze_object_column(col_data) if col_type == 'object' else None
+        type_analysis = ""
+        if col_type == 'object':
+            type_analysis = analyze_object_column(col_data) if col_type == 'object' else None
 
         results.append({
-            'column_name': column,
-            'data_type': col_type,
-            'specific_types': type_analysis,
+            'column_name': column ,
+            'data_type': col_type + (f" ({type_analysis})" if type_analysis else ''),
             'unique_values': int(col_data.nunique()),
             'duplicate_values': int(total_records - col_data.nunique() - col_data.isnull().sum()),
             'null_values': int(col_data.isnull().sum()),
