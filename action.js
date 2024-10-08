@@ -95,7 +95,7 @@ function displayResults(data) {
     const resultDiv = document.getElementById('uploadResult');
     resultDiv.innerHTML = `<h2>Analysis Results</h2>`;
 
-    if (!data || data.length === 0) {
+    if (!Array.isArray(data) || data.length === 0) {
         resultDiv.innerHTML += `<p>No data received from the server.</p>`;
         return;
     }
